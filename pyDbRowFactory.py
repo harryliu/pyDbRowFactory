@@ -14,7 +14,7 @@
 #version 0001, 09 Nov. 2011, initial version
 #version 0002, 16 Feb. 2012, use pyObjectCreator to instantiate rowClass
 #version 0003, 08 Mar. 2012, fromSqlAlchemyResultProxy(), fetchAllRowObjects() functions added
-
+#version 0004, 31 May. 2013, bug fix version, disable auto-close cursor if not created by SqlAlchemy
 ##====================sample begin=======
 #sample code , file: OracleJdbcSample,py
 from __future__ import with_statement
@@ -251,17 +251,24 @@ class DbRowFactory(object):
                 self._resultProxy.close()
 
 
+    def _createdBySqlAlchemy(self):
+        return self._resultProxy!=None
+
+
     def fetchAllRowObjects(self):
         """Fetch all rows, just like DB-API ``cursor.fetchall()``.
-         the cursor is automatically closed after this is called
+         
+         If instantiated by SqlAlchemy, the cursor is automatically closed after this is called
          """
         result=[]
         rows=self._cursor.fetchall()
         for row in rows:
             rowObject=self.createRowInstance(row)
             result.append(rowObject)
-        self._cursor.close()
-        self._closeResultProxy()
+            
+        if self._createdBySqlAlchemy():
+            self._cursor.close()
+            self._closeResultProxy()
         return result
 
 
@@ -269,7 +276,7 @@ class DbRowFactory(object):
         """Fetch many rows, just like DB-API
         ``cursor.fetchmany(size=cursor.arraysize)``.
 
-        If rows are present, the cursor remains open after this is called.
+        If instantiated by SqlAlchemy, when rows are present, the cursor remains open after this is called.
         Else the cursor is automatically closed and an empty list is returned.
 
         """
@@ -278,9 +285,11 @@ class DbRowFactory(object):
         for row in rows:
             rowObject=self.createRowInstance(row)
             result.append(rowObject)
-        if len(rows) == 0:
-            self._cursor.close()
-            self._closeResultProxy()
+            
+        if self._createdBySqlAlchemy():
+            if len(rows) == 0:
+                self._cursor.close()
+                self._closeResultProxy()
         return result
 
 
@@ -288,7 +297,7 @@ class DbRowFactory(object):
     def fetchOneRowObject(self):
         """Fetch one row, just like DB-API ``cursor.fetchone()``.
 
-        If a row is present, the cursor remains open after this is called.
+        If instantiated by SqlAlchemy, when a row is present, the cursor remains open after this is called.
         Else the cursor is automatically closed and None is returned.
 
         """
@@ -297,7 +306,9 @@ class DbRowFactory(object):
         if row is not None:
             result=self.createRowInstance(row) 
         else:
-            self._cursor.close()
-            self._closeResultProxy()
+            if self._createdBySqlAlchemy():
+                self._cursor.close()
+                self._closeResultProxy()
 
         return result
+
