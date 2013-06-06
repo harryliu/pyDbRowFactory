@@ -245,7 +245,7 @@ class DbRowFactory(object):
                 return allMethodMap[setterUpper]
 
 
-    def _closeResultProxy(self):
+    def _closeResultProxy(self): 
         if self._resultProxy is not None:
             if self._resultProxy.closed==False:
                 self._resultProxy.close()
